@@ -1,0 +1,40 @@
+version: 1
+project:
+  id: modelflow-specification
+  title: ModelFlow - Model Specification
+  description: >-
+    Supplement on specifying models in ModelFlow: the specification language,
+    the %%Makemymodel Jupyter magic, estimation, equation normalization and
+    add factors.
+  exports:
+    - format: pdf
+      template: ../../latex/mfbook-template
+      output: exports/pdf/specification.pdf
+      articles: &chapters
+        - intro.md
+        - model specification.ipynb
+        - jupyter_magic_makemymodel.ipynb
+        - estimation.ipynb
+        - normal.ipynb
+        - add factors.ipynb
+    - format: tex
+      template: ../../latex/mfbook-template
+      output: exports/tex/specification.tex
+      articles: *chapters
+  toc:
+    - file: intro.md
+      title: Introduction
+    - file: model specification.ipynb
+      title: Model specification
+    - file: jupyter_magic_makemymodel.ipynb
+      title: The %%Makemymodel magic
+    - file: estimation.ipynb
+      title: Estimation
+    - file: normal.ipynb
+      title: Normalization
+    - file: add factors.ipynb
+      title: Add factors
+site:
+  template: book-theme
+  options:
+    logo_text: Model specification

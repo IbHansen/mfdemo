@@ -1,0 +1,14 @@
+// Sequential solution, period by period, when there are no leads.
+digraph periods {
+  rankdir=LR; ranksep=0.40; nodesep=0.25;
+  bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#f5f5f7", color="#9a9aa2",
+        fontname="Arial", fontsize=10, margin="0.16,0.08"];
+  edge [color="#6b6b73", arrowsize=0.7, penwidth=0.9, fontname="Arial", fontsize=9, fontcolor="#6b6b73"];
+  t0 [label="period t", fillcolor="#eef2f7"];
+  c0 [label="Gauss-Seidel\nto convergence"];
+  t1 [label="period t+1", fillcolor="#eef2f7"];
+  c1 [label="Gauss-Seidel\nto convergence"];
+  d  [label="…", shape=plaintext, style="", fillcolor="none"];
+  t0 -> c0 -> t1 -> c1 -> d;
+}

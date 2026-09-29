@@ -1,0 +1,13 @@
+// Prolog, core and epilog, with the simultaneous feedback inside the core.
+digraph pce {
+  rankdir=LR; ranksep=0.55;
+  bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#f5f5f7", color="#9a9aa2",
+        fontname="Arial", fontsize=10, margin="0.16,0.08"];
+  edge [color="#6b6b73", arrowsize=0.7, penwidth=0.9, fontname="Arial", fontsize=9, fontcolor="#6b6b73"];
+  pro [label="PROLOG\ncalculated once"];
+  core [label="CORE\niterated", fillcolor="#eef2f7"];
+  epi [label="EPILOG\ncalculated after convergence"];
+  pro -> core -> epi;
+  core -> core [label="simultaneous feedback", headport=n, tailport=n];
+}

@@ -1,0 +1,45 @@
+version: 1
+project:
+  id: modelflow-general
+  title: ModelFlow - Architecture and History
+  authors:
+    - name: Ib Hansen
+  description: >-
+    Supplement on the ModelFlow architecture: where the design comes from, how a
+    model specification becomes executable code, how the resulting equation
+    system is ordered and solved, and how the same derivative machinery is
+    reused to study local stability.
+  bibliography:
+    - ../../references.bib
+  exports:
+    - format: pdf
+      template: ../../latex/mfbook-template
+      output: exports/pdf/general.pdf
+      articles: &chapters
+        - intro.md
+        - Historic_complete.md
+        - modelflow_specification_to_code.md
+        - modelflow_structure_and_solution.md
+        - modelflow_stability.md
+        - modelflow_stability_examples.ipynb
+    - format: tex
+      template: ../../latex/mfbook-template
+      output: exports/tex/general.tex
+      articles: *chapters
+  toc:
+    - file: intro.md
+      title: Introduction
+    - file: Historic_complete.md
+      title: Historical background
+    - file: modelflow_specification_to_code.md
+      title: Specification to executable code
+    - file: modelflow_structure_and_solution.md
+      title: Structure and solution
+    - file: modelflow_stability.md
+      title: Local stability and dynamics
+    - file: modelflow_stability_examples.ipynb
+      title: Stability in practice
+site:
+  template: book-theme
+  options:
+    logo_text: ModelFlow architecture

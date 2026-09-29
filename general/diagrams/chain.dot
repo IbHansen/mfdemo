@@ -1,0 +1,36 @@
+// The full specification-to-solution chain.
+digraph chain {
+  rankdir=TB;
+  bgcolor="transparent";
+  ranksep=0.30;
+  nodesep=0.30;
+  node [shape=box, style="rounded,filled", fillcolor="#f5f5f7", color="#9a9aa2",
+        fontname="Arial", fontsize=10, margin="0.16,0.08"];
+  edge [color="#6b6b73", arrowsize=0.7, penwidth=0.9];
+
+  ext    [label="External model formats\nEViews / Dynare / GAMS / Excel", fillcolor="#eef2f7"];
+  dsl    [label="Higher-level ModelFlow DSL\nlists / do / doable / sum / tags"];
+  eqdsl  [label="Expanded equation DSL"];
+  norm   [label="Normalization\nsolve for one endogenous variable\nadd factor / fixable / reverse variants"];
+  ast    [label="AST syntax validation\non the original equations"];
+  rw     [label="Regex / token rewriting"];
+  py     [label="Executable Python"];
+  jit    [label="Numba-compiled Python", style="rounded,filled,dashed", fillcolor="#fbf6ec"];
+  gan    [label="Graph analysis\norder, prolog / core / epilog, feedback set"];
+  solver [label="ModelFlow solver", fillcolor="#eef2f7"];
+  gs     [label="Gauss-Seidel"];
+  nw     [label="Newton"];
+  one    [label="one period"];
+  stk    [label="stacked periods"];
+
+  ext -> dsl -> eqdsl -> norm -> ast -> rw -> py -> gan -> solver;
+  py -> jit [label="optional", style=dashed, fontsize=9, fontname="Arial", fontcolor="#6b6b73"];
+  solver -> gs;
+  solver -> nw;
+  nw -> one;
+  nw -> stk;
+
+  { rank=same; py; jit; }
+  { rank=same; gs; nw; }
+  { rank=same; one; stk; }
+}

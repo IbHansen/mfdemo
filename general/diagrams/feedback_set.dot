@@ -1,0 +1,15 @@
+// One iteration over the feedback variables inside the simultaneous core.
+digraph fbset {
+  rankdir=TB; ranksep=0.30; nodesep=0.50;
+  bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#f5f5f7", color="#9a9aa2",
+        fontname="Arial", fontsize=10, margin="0.16,0.08"];
+  edge [color="#6b6b73", arrowsize=0.7, penwidth=0.9, fontname="Arial", fontsize=9, fontcolor="#6b6b73"];
+  a [label="simultaneous core", fillcolor="#eef2f7"];
+  b [label="select feedback variables"];
+  c [label="evaluate remaining equations\nin causal / topological order"];
+  d [label="update feedback variables"];
+  e [label="convergence test", shape=diamond, style="filled", fillcolor="#fbf6ec"];
+  a -> b -> c -> d -> e;
+  e -> c [xlabel="not converged", constraint=false];
+}

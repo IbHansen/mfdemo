@@ -1,0 +1,19 @@
+// A Gauss-Seidel sweep and its convergence test.
+digraph gs {
+  rankdir=TB; ranksep=0.28;
+  bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#f5f5f7", color="#9a9aa2",
+        fontname="Arial", fontsize=10, margin="0.16,0.08"];
+  edge [color="#6b6b73", arrowsize=0.7, penwidth=0.9, fontname="Arial", fontsize=9, fontcolor="#6b6b73"];
+  s  [label="starting values", fillcolor="#eef2f7"];
+  e1 [label="equation 1  →  update variable 1"];
+  e2 [label="equation 2  →  update variable 2"];
+  e3 [label="equation 3  →  update variable 3"];
+  dots [label="…", shape=plaintext, style="", fillcolor="none"];
+  eoi [label="end of iteration"];
+  t  [label="convergence test", shape=diamond, style=filled, fillcolor="#fbf6ec"];
+  sol [label="solution", fillcolor="#eaf2ea"];
+  s -> e1 -> e2 -> e3 -> dots -> eoi -> t;
+  t -> sol [label="yes"];
+  t -> e1  [label="no", constraint=false];
+}

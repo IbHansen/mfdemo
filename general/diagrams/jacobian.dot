@@ -1,0 +1,21 @@
+// How the Jacobian is obtained and used in a Newton step.
+digraph jac {
+  rankdir=TB; ranksep=0.26;
+  bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#f5f5f7", color="#9a9aa2",
+        fontname="Arial", fontsize=10, margin="0.16,0.08"];
+  edge [color="#6b6b73", arrowsize=0.7, penwidth=0.9, fontname="Arial", fontsize=9, fontcolor="#6b6b73"];
+  a [label="original equations", fillcolor="#eef2f7"];
+  b [label="symbolic differentiation"];
+  n [label="numerical differentiation\nwhere required", style="rounded,filled,dashed", fillcolor="#fbf6ec"];
+  c [label="derivative equations"];
+  d [label="derivative ModelFlow model"];
+  e [label="evaluate coefficients"];
+  f [label="sparse Jacobian"];
+  g [label="sparse LU factorization"];
+  h [label="Newton update", fillcolor="#eaf2ea"];
+  a -> b -> c -> d -> e -> f -> g -> h;
+  b -> n [label="fallback", style=dashed];
+  n -> c [style=dashed];
+  { rank=same; b; n; }
+}

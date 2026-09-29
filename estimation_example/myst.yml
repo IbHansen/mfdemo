@@ -1,0 +1,34 @@
+version: 1
+project:
+  id: modelflow-estimation-example
+  title: ModelFlow - Estimation, a worked example
+  authors:
+    - name: Andrew Burns
+    - name: Ib Hansen
+  description: >-
+    A complete example in ModelFlow, end to end: national accounts data for Nepal,
+    behavioural equations estimated one at a time and then as part of building the
+    model, add factors that make it reproduce history and forecast, and an experiment
+    run against the resulting baseline.
+  bibliography:
+    - ../../references.bib
+  exports:
+    - format: pdf
+      template: ../../latex/mfbook-template
+      output: exports/pdf/estimation_example.pdf
+      articles: &chapters
+        - intro.md
+        - estimation_example.ipynb
+    - format: tex
+      template: ../../latex/mfbook-template
+      output: exports/tex/estimation_example.tex
+      articles: *chapters
+  toc:
+    - file: intro.md
+      title: Introduction
+    - file: estimation_example.ipynb
+      title: A model for Nepal
+site:
+  template: book-theme
+  options:
+    logo_text: Estimation example
