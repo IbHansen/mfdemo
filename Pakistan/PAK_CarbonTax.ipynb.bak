@@ -101,9 +101,7 @@
    },
    "outputs": [],
    "source": [
-    "import sys\n",
-    "if sys.platform != 'emscripten':  # the interactive backend needs a full Jupyter, not the browser\n",
-    "    %matplotlib Notebook"
+    "%matplotlib Notebook"
    ]
   },
   {
@@ -117,7 +115,7 @@
     "tags": []
    },
    "source": [
-    "### This is code to manage dependencies if the notebook is executed in Google Colab or in the browser"
+    "### This is code to manage dependencies if the notebook is executed in the google colab cloud service"
    ]
   },
   {
@@ -133,26 +131,14 @@
    },
    "outputs": [],
    "source": [
-    "# Only run installs on Colab or in the browser\n",
-    "import sys\n",
+    "# Only run installs on Colab\n",
     "import importlib.util\n",
     "\n",
     "if 'google.colab' in str(get_ipython()):\n",
     "    if importlib.util.find_spec(\"modelclass\") is None:\n",
     "        !apt-get -qq install -y graphviz\n",
     "        !pip -qq install ModelFlowIb > /dev/null 2>&1\n",
-    "        !mkdir -p data && curl -L https://raw.githubusercontent.com/worldbank/MFMod-ModelFlow/main/models/Pakistan/data/pak_new.pcim -o data/pak_new.pcim\n",
-    "\n",
-    "elif sys.platform == 'emscripten':  # in the browser: the book's live code (thebe-lite) or JupyterLite\n",
-    "    import micropip\n",
-    "    await micropip.install('modelflowib>=2.85')  # 2.85: no pyarrow in the browser, which the book's Pyodide lacks\n",
-    "    # the browser has no data folder, so fetch the model file into one\n",
-    "    from pathlib import Path\n",
-    "    from pyodide.http import pyfetch\n",
-    "    if not Path('data/pak.pcim').exists():\n",
-    "        Path('data').mkdir(exist_ok=True)\n",
-    "        response = await pyfetch('https://raw.githubusercontent.com/IbHansen/modelflow-manual/main/model_repo/pak.pcim')\n",
-    "        Path('data/pak.pcim').write_bytes(await response.bytes())"
+    "        !mkdir -p data && curl -L https://raw.githubusercontent.com/worldbank/MFMod-ModelFlow/main/models/Pakistan/data/pak_new.pcim -o data/pak_new.pcim"
    ]
   },
   {
@@ -3357,8 +3343,7 @@
     }
    ],
    "source": [
-    "if sys.platform != 'emscripten':  # Dash does not run in the browser\n",
-    "    mpak.modeldash('PAKNYGDPMKTPCN')"
+    "mpak.modeldash('PAKNYGDPMKTPCN')"
    ]
   },
   {
@@ -3382,8 +3367,7 @@
     }
    ],
    "source": [
-    "if sys.platform != 'emscripten':  # Dash does not run in the browser\n",
-    "    mpak.modeldash('PAKCCEMISCO2TKN')"
+    "mpak.modeldash('PAKCCEMISCO2TKN')"
    ]
   },
   {
