@@ -8,7 +8,7 @@ project:
     add factors.
   exports:
     - format: pdf
-      template: ../../latex/mfbook-template
+      template: latex/mfbook-template
       output: exports/pdf/specification.pdf
       articles: &chapters
         - intro.md
@@ -18,7 +18,7 @@ project:
         - normal.ipynb
         - add factors.ipynb
     - format: tex
-      template: ../../latex/mfbook-template
+      template: latex/mfbook-template
       output: exports/tex/specification.tex
       articles: *chapters
   toc:

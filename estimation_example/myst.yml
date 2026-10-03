@@ -11,16 +11,16 @@ project:
     model, add factors that make it reproduce history and forecast, and an experiment
     run against the resulting baseline.
   bibliography:
-    - ../../references.bib
+    - references.bib
   exports:
     - format: pdf
-      template: ../../latex/mfbook-template
+      template: latex/mfbook-template
       output: exports/pdf/estimation_example.pdf
       articles: &chapters
         - intro.md
         - estimation_example.ipynb
     - format: tex
-      template: ../../latex/mfbook-template
+      template: latex/mfbook-template
       output: exports/tex/estimation_example.tex
       articles: *chapters
   toc:

@@ -10,10 +10,10 @@ project:
     system is ordered and solved, and how the same derivative machinery is
     reused to study local stability.
   bibliography:
-    - ../../references.bib
+    - references.bib
   exports:
     - format: pdf
-      template: ../../latex/mfbook-template
+      template: latex/mfbook-template
       output: exports/pdf/general.pdf
       articles: &chapters
         - intro.md
@@ -23,7 +23,7 @@ project:
         - modelflow_stability.md
         - modelflow_stability_examples.ipynb
     - format: tex
-      template: ../../latex/mfbook-template
+      template: latex/mfbook-template
       output: exports/tex/general.tex
       articles: *chapters
   toc:
