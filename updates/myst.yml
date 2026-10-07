@@ -1,0 +1,31 @@
+version: 1
+project:
+  id: modelflow-updates
+  title: ModelFlow - Installing and what is new
+  authors:
+    - name: Ib Hansen
+  description: >-
+    Supplement on installing ModelFlow on Windows (Miniforge with winget, conda
+    init, Jupyter Notebook 7, JupyterLab, Spyder and VS Code) and on what is new
+    since the ModelFlow book: .pcimz and .pcims files, scenario tables, the new
+    solvers, graphs without graphviz and Jupyter 7.
+  exports:
+    - format: pdf
+      template: latex/mfbook-template
+      output: exports/pdf/updates.pdf
+      articles: &chapters
+        - installing.md
+        - whats_new.ipynb
+    - format: tex
+      template: latex/mfbook-template
+      output: exports/tex/updates.tex
+      articles: *chapters
+  toc:
+    - file: installing.md
+      title: Installing ModelFlow
+    - file: whats_new.ipynb
+      title: What is new
+site:
+  template: book-theme
+  options:
+    logo_text: ModelFlow updates
