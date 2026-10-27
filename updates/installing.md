@@ -4,10 +4,6 @@ This chapter sets up ModelFlow on a Windows PC: Miniforge (a small conda
 distribution), a conda environment with ModelFlow, and the programs to work
 in: Jupyter Notebook 7, JupyterLab, Spyder and VS Code.
 
-If you only want to try ModelFlow, you don't have to install anything. The
-JupyterLite site runs ModelFlow in the browser, and the Codespace runs it in
-the cloud.
-
 ## 1. Install Miniforge with winget
 
 [Miniforge](https://github.com/conda-forge/miniforge) is a minimal conda
@@ -21,9 +17,6 @@ licence restrictions for organisations.
 winget install -e --id CondaForge.Miniforge3
 ```
 
-Close the window when it finishes. Windows only reads the new settings in a
-new terminal window.
-
 :::{note}
 Without `winget`, download the installer `Miniforge3-Windows-x86_64.exe`
 from the [Miniforge releases](https://github.com/conda-forge/miniforge/releases/latest)
@@ -32,61 +25,16 @@ and run it. Choose *Just Me*. Leave *Add Miniforge3 to my PATH* unticked.
 
 Miniforge is installed in your user folder, normally
 `C:\Users\<you>\miniforge3`. The Start menu now has a **Miniforge Prompt**:
-a command window where conda is ready to use.
+a command window where conda is ready to use. Run all the commands in this
+chapter in the Miniforge Prompt.
 
-## 2. Make conda work in every terminal: `conda init`
-
-So far conda only works in the Miniforge Prompt. `conda init` sets up both
-**Command Prompt (cmd)** and **PowerShell**, so that `conda` and
-`conda activate` work in any terminal window. VS Code's terminal and the
-terminal in JupyterLab also need it.
-
-Open the **Miniforge Prompt** and run:
-
-```
-conda init cmd.exe powershell
-```
-
-- For **cmd**, `conda init` adds an *AutoRun* entry for your user in the
-  registry (`HKEY_CURRENT_USER\Software\Microsoft\Command Processor`). It
-  runs conda's start script every time a Command Prompt opens.
-- For **PowerShell**, it adds the start script to your PowerShell profile
-  (`Documents\WindowsPowerShell\profile.ps1`).
-
-To check that it worked, open a new **Command Prompt** and a new
-**PowerShell** window. In both, the prompt should start with `(base)`, and
-this should print the conda version:
-
-```
-conda --version
-```
-
-If cmd says *'conda' is not recognized*, run `conda init cmd.exe` again from
-the Miniforge Prompt. Then open a new Command Prompt; the old one doesn't
-pick up the change.
-
-If PowerShell says *running scripts is disabled on this system*, allow
-locally created scripts once with the following command, then open a new window:
-
-```
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-By default, every new terminal starts in the `base` environment. This setting
-controls it:
-
-```
-conda config --set auto_activate_base true    # start every terminal in base (default)
-conda config --set auto_activate_base false   # start with no environment active
-```
-
-## 3. Create an environment with ModelFlow
+## 2. Create an environment with ModelFlow
 
 Keep ModelFlow in its own environment, not in `base`. Then an update of one
-project can't break another.
+project can't break another. Open the **Miniforge Prompt** and run:
 
 ```
-conda create -n modelflow -c conda-forge python=3.12 ibh::modelflow jupyterlab spyder -y
+conda create -n modelflow -c conda-forge python=3.14 ibh::modelflow jupyterlab spyder-kernels -y
 conda activate modelflow
 pip install dash-interactive-graphviz
 ```
@@ -95,16 +43,67 @@ pip install dash-interactive-graphviz
   dependencies (pandas, numba, graphviz, pandoc, ...) from `conda-forge`.
 - `dash-interactive-graphviz` is only on PyPI. It is used by the `.dash()`
   causality dashboard.
-- `spyder` is optional. Leave it out if you don't use Spyder.
+- `spyder-kernels` lets Spyder (step 4) run code in this environment. Leave
+  it out if you don't use Spyder.
 
-Remember `conda activate modelflow` each time you open a new terminal.
+Remember `conda activate modelflow` each time you open a new Miniforge Prompt.
 
-### Updating ModelFlow later
+### If `import scipy` fails: Smart App Control
+
+Check that the scientific packages load:
 
 ```
 conda activate modelflow
-conda update -c ibh -c conda-forge modelflow
+python -c "import scipy.special; from modelclass import model; print('ok')"
 ```
+
+On some Windows 11 PCs this fails with an error like:
+
+```
+ImportError: DLL load failed while importing _ufuncs: An Application Control policy has blocked this file.
+```
+
+Windows may also show a notice that *part of this app has been blocked*. The
+cause is **Smart App Control**, which blocks program files Windows doesn't
+know. The packages from conda-forge are not signed, so Smart App Control can
+block them. scipy is usually the first to fail, but numba and other packages
+can be hit too.
+
+Only do this if you get the error. Turn Smart App Control off:
+
+> Settings → Privacy & security → Windows Security → App & browser control →
+> Smart App Control settings → **Off**
+
+On a Danish Windows: *Indstillinger → Beskyttelse af personlige oplysninger og
+sikkerhed → Windows-sikkerhed → App- og browserkontrol → Indstillinger for
+Smart appkontrol → Fra*.
+
+:::{warning}
+On most Windows 11 versions, Smart App Control **can't be turned on again**
+without resetting or reinstalling Windows. Microsoft Defender antivirus keeps
+running. Smart App Control is already off on many PCs, for instance most
+company-managed PCs and PCs upgraded from Windows 10.
+:::
+
+If you can't or won't turn it off, ModelFlow can still run in the browser;
+see *Trying ModelFlow without installing* at the end of this chapter.
+
+### Updating ModelFlow later
+
+Don't update the environment. Create it again with the same command as above,
+so that ModelFlow and all the packages it uses are new and fit together. Conda
+asks whether to remove the existing environment; `-y` answers yes. Run it in a
+new Miniforge Prompt, where `modelflow` is not active:
+
+```
+conda create -n modelflow -c conda-forge python=3.14 ibh::modelflow jupyterlab spyder-kernels -y
+conda activate modelflow
+pip install dash-interactive-graphviz
+```
+
+Your notebooks and data are not touched; they are in your own folders. Only
+packages you have installed in the environment yourself are lost. Install them
+again.
 
 Check which version you have:
 
@@ -112,20 +111,13 @@ Check which version you have:
 conda list modelflow
 ```
 
-### Installing with pip
+ModelFlow is also on PyPI (`pip install modelflowib`), but use conda on
+Windows: pip can't install graphviz and pandoc, which ModelFlow uses for
+graphs and reports.
 
-ModelFlow is also on PyPI as `modelflowib`:
+## 3. Start Jupyter Notebook or JupyterLab
 
-```
-pip install modelflowib
-```
-
-Prefer conda on Windows: pip can't install the graphviz and pandoc programs,
-which ModelFlow uses to draw graphs and make reports.
-
-## 4. Start Jupyter Notebook or JupyterLab
-
-Open a terminal and change to the folder with your notebooks. Jupyter only
+Open the Miniforge Prompt and change to the folder with your notebooks. Jupyter only
 shows files in and below the folder it was started from. Then start one of
 them:
 
@@ -143,25 +135,7 @@ cd C:\models\mynotebooks
 jupyter lab
 ```
 
-The browser opens by itself. Stop the server with **Ctrl+C** in the terminal.
-
-### Jupyter Notebook 7 and JupyterLab 4
-
-Jupyter Notebook 7 is built on JupyterLab, so the two now share extensions,
-widgets and settings. The old *classic* notebook (version 6) is no longer
-developed. Some things that worked there don't work in version 7:
-
-| In classic Notebook 6 | In Notebook 7 / JupyterLab |
-|---|---|
-| `nbextensions` (Table of contents, Hide input, ...) | built in: the table of contents is in the left sidebar; collapse a cell's input by clicking the blue bar to its left |
-| A notebook could run itself when opened (`modelflow_auto`) | Not possible. `model.modelflow_auto()` now only makes the notebook wider |
-| Widen the page with custom CSS | `model.widescreen()` |
-| Long output in a scroll box, fixed with custom CSS | `model.scroll_off()` (works in Notebook 7, JupyterLab and JupyterLite) |
-| Markdown only | With `jupyterlab-myst` (installed with ModelFlow), markdown cells render MyST directives, such as `{note}` boxes and `{mermaid}` diagrams, like in a Jupyter Book |
-
-Use **Notebook 7** for one notebook at a time, with a simple screen.
-Use **JupyterLab** to work with several notebooks, terminals and files side
-by side. Both open the same `.ipynb` files.
+The browser opens by itself. Stop the server with **Ctrl+C** in the Miniforge Prompt.
 
 A typical first cell:
 
@@ -171,24 +145,36 @@ model.widescreen()
 model.scroll_off()
 ```
 
-## 5. Spyder
+## 4. Spyder
 
 [Spyder](https://www.spyder-ide.org/) is a scientific IDE in the style of
 MATLAB and RStudio, with an editor, a variable explorer and an IPython
 console. It suits scripts better than notebooks. Write the script in cells
 separated by `#%%`, and run one cell with **Ctrl+Enter**.
 
-If you installed `spyder` in the environment above, start it with:
+Install Spyder as a standalone program, not in the conda environment:
+
+1. Download and run the Windows installer from
+   [spyder-ide.org](https://www.spyder-ide.org/download/).
+2. Start Spyder from the Start menu.
+3. Point it at the ModelFlow environment: **Tools > Preferences > Python
+   interpreter > Use the following Python interpreter**, and choose
+   `C:\Users\<you>\miniforge3\envs\modelflow\python.exe`. Click **OK** and
+   open a new console (**Consoles > Restart kernel**).
+
+This needs `spyder-kernels` in the environment, which the `conda create`
+command above installs. If Spyder says the `spyder-kernels` version doesn't
+fit, install the version it asks for in the Miniforge Prompt, for example:
 
 ```
 conda activate modelflow
-spyder
+conda install -c conda-forge spyder-kernels=3.1
 ```
 
 Spyder can't show ipywidgets, so use the notebooks for the interactive
 widgets. Tables, plots and `model.draw` work.
 
-## 6. Visual Studio Code
+## 5. Visual Studio Code
 
 [VS Code](https://code.visualstudio.com/) opens notebooks and Python
 scripts in the same editor. Install it with winget:
@@ -209,15 +195,40 @@ Then:
 The `#%%` cells in a `.py` file get a *Run Cell* button, as in Spyder.
 Widgets and the `model.causality()` viewer work in VS Code notebooks.
 
+## 6. Optional: conda in every terminal
+
+Only needed if you want `conda` in an ordinary Command Prompt or PowerShell,
+or in the terminals inside VS Code and JupyterLab. In the Miniforge Prompt run:
+
+```
+conda init cmd.exe powershell
+```
+
+Open a new window; the prompt should start with `(base)`. If PowerShell says
+*running scripts is disabled on this system*, run this once and open a new
+window:
+
+```
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
 ## 7. Summary
 
 | Task | Command |
 |---|---|
 | Install Miniforge | `winget install -e --id CondaForge.Miniforge3` |
-| Make conda work in cmd and PowerShell | `conda init cmd.exe powershell` (in the Miniforge Prompt) |
-| Create the ModelFlow environment | `conda create -n modelflow -c conda-forge python=3.12 ibh::modelflow jupyterlab -y` |
+| Create the ModelFlow environment | `conda create -n modelflow -c conda-forge python=3.14 ibh::modelflow jupyterlab -y` |
 | Activate it | `conda activate modelflow` |
 | Notebook 7 | `jupyter notebook` |
 | JupyterLab | `jupyter lab` |
-| Spyder | `spyder` |
-| Update ModelFlow | `conda update -c ibh -c conda-forge modelflow` |
+| Spyder | Standalone installer from spyder-ide.org; set its interpreter to the `modelflow` environment |
+| Update ModelFlow | Run the `conda create` command again (in a new Miniforge Prompt) |
+| Optional: conda in cmd and PowerShell | `conda init cmd.exe powershell` |
+
+## 8. Trying ModelFlow without installing
+
+[**ModelFlow in the browser (JupyterLite)**](https://ibhansen.github.io/jupyter_lite/)
+runs ModelFlow inside your web browser, with nothing to install and no account
+needed. It opens with the Pakistan model, and has the World Bank country models
+and examples. Solving is slower than on a PC (no numba), and the Dash
+dashboards don't work.

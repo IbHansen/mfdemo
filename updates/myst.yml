@@ -8,7 +8,8 @@ project:
     Supplement on installing ModelFlow on Windows (Miniforge with winget, conda
     init, Jupyter Notebook 7, JupyterLab, Spyder and VS Code) and on what is new
     since the ModelFlow book: .pcimz and .pcims files, scenario tables, the new
-    solvers, graphs without graphviz and Jupyter 7.
+    solvers, graphs without graphviz and Jupyter 7; and a chapter on solving
+    models: the PAK benchmark, the FRB/US case study and a solver reference.
   exports:
     - format: pdf
       template: latex/mfbook-template
@@ -16,6 +17,8 @@ project:
       articles: &chapters
         - installing.md
         - whats_new.ipynb
+        - changes_since_book.md
+        - solvers.ipynb
     - format: tex
       template: latex/mfbook-template
       output: exports/tex/updates.tex
@@ -24,7 +27,11 @@ project:
     - file: installing.md
       title: Installing ModelFlow
     - file: whats_new.ipynb
-      title: What is new
+      title: New features by example
+    - file: changes_since_book.md
+      title: All changes since the book
+    - file: solvers.ipynb
+      title: Solving models
 site:
   template: book-theme
   options:

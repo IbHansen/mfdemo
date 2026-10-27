@@ -1,0 +1,756 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "1199e16b",
+   "metadata": {},
+   "source": [
+    "# Input formats: `type_input`\n",
+    "\n",
+    "`Makemodel` is the entry point for a model specification, and so far its input has always been\n",
+    "**Markdown**: prose, with the equations on lines starting with `>`. That is the main road through\n",
+    "ModelFlow, the one the `%%Makemymodel` magic takes, and the one the rest of this book uses.\n",
+    "\n",
+    "The equations of a model do not always start life in a notebook, though. They may sit in a plain\n",
+    "ModelFlow text, in a file written by another program, or in another modelling system. The argument\n",
+    "`type_input` tells `Makemodel` what kind of text it is given, and four more arguments let you\n",
+    "describe a format of your own:\n",
+    "\n",
+    "| Argument | Meaning |\n",
+    "|---|---|\n",
+    "| `type_input` | `'markdown'` (the default), `'modelflow'`, `'single'`, `'gekko'` or `'eviews'` |\n",
+    "| `eq_start` | String(s) which start an equation, e.g. `'FRML'`; text outside an equation is ignored |\n",
+    "| `eq_end` | String(s) which end an equation, e.g. `'$'` or `';'`; an equation can then span lines |\n",
+    "| `comment_start` | String(s) which start a comment running to the end of the line |\n",
+    "| `transform` | A function which translates each equation to ModelFlow form |\n",
+    "\n",
+    "Whatever the input, the first step brings it to the same thing: **one ModelFlow statement per\n",
+    "line**. From there everything is shared -- `FRML` and `$` are added, lists, `do` loops and `doable`\n",
+    "are expanded, tagged equations are estimated, and the equations are normalized. So every feature of\n",
+    "the earlier chapters works whatever the input format."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "3d9627f8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import functools\n",
+    "import re\n",
+    "\n",
+    "from modelconstruct_estimation import (Makemodel, extract_equations,\n",
+    "                                       gekko_to_modelflow, eviews_to_modelflow)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a65c3963",
+   "metadata": {},
+   "source": [
+    "## Markdown -- the main road\n",
+    "\n",
+    "In Markdown input the model **is** its documentation. Only lines starting with `>` are read as\n",
+    "model text; everything else is prose, headings, tables and formulas for the reader. A long\n",
+    "equation is continued on a line starting with `>>`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "5220796f",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <STOC> C = (0.6*YD+0.3*C(-1) + C_A)* (1-C_D)+ C_X*C_D  $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <> Y = C+I+G $\n",
+      "\n",
+      "FRML <CALC_ADD_FACTOR>  C_A = (C) - (0.6*YD+0.3*C(-1)) $\n"
+     ]
+    }
+   ],
+   "source": [
+    "Mmd = Makemodel(\"\"\"\n",
+    "## Consumption\n",
+    "Households spend out of disposable income, and habits make last year's consumption matter:\n",
+    "><stoc> c = 0.6*yd\n",
+    ">>          + 0.3*c(-1)\n",
+    "\n",
+    "## Income\n",
+    "Disposable income is income less taxes, and income is the sum of demand:\n",
+    "> yd = y - t\n",
+    "> y  = c + i + g\n",
+    "\"\"\")\n",
+    "Mmd.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "560dd4fb",
+   "metadata": {},
+   "source": [
+    "The same text renders as a document:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "6d9cd807",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<h2>Consumption</h2>\n",
+       "<p>Households spend out of disposable income, and habits make last year's consumption matter:</p>\n",
+       "<pre><code class=\"language-text\">&gt;&lt;stoc&gt; c = 0.6*yd\n",
+       "&gt;&gt;          + 0.3*c(-1)\n",
+       "</code></pre>\n",
+       "<h2>Income</h2>\n",
+       "<p>Disposable income is income less taxes, and income is the sum of demand:</p>\n",
+       "<pre><code class=\"language-text\">&gt; yd = y - t\n",
+       "&gt; y  = c + i + g\n",
+       "</code></pre>\n"
+      ],
+      "text/markdown": [
+       "\n",
+       "## Consumption\n",
+       "Households spend out of disposable income, and habits make last year's consumption matter:\n",
+       "\n",
+       "```text\n",
+       "><stoc> c = 0.6*yd\n",
+       ">>          + 0.3*c(-1)\n",
+       "```\n",
+       "\n",
+       "## Income\n",
+       "Disposable income is income less taxes, and income is the sum of demand:\n",
+       "\n",
+       "```text\n",
+       "> yd = y - t\n",
+       "> y  = c + i + g\n",
+       "```"
+      ],
+      "text/plain": [
+       "\n",
+       "## Consumption\n",
+       "Households spend out of disposable income, and habits make last year's consumption matter:\n",
+       "\n",
+       "```text\n",
+       "><stoc> c = 0.6*yd\n",
+       ">>          + 0.3*c(-1)\n",
+       "```\n",
+       "\n",
+       "## Income\n",
+       "Disposable income is income less taxes, and income is the sum of demand:\n",
+       "\n",
+       "```text\n",
+       "> yd = y - t\n",
+       "> y  = c + i + g\n",
+       "```"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "Mmd.render"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c78ab2d2",
+   "metadata": {},
+   "source": [
+    "Markdown input can also carry LaTeX: an `equation` environment with a `\\label{eq:...}` is read as\n",
+    "an equation, with its tags in a `% @<...>` comment line, and list definitions can be written as\n",
+    "inline math. This is the format the `%%Makemymodel` magic passes on, and the rest of this chapter is\n",
+    "about the cases where the text is **not** Markdown."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "7636fb67",
+   "metadata": {},
+   "source": [
+    "## `type_input='modelflow'` -- plain ModelFlow text\n",
+    "\n",
+    "Plain ModelFlow text has no prose, so there is no `>`. It can be written with or without the\n",
+    "`FRML <...> ... $` around each equation:\n",
+    "\n",
+    "* **without**: one statement per line, the `FRML` and `$` are added;\n",
+    "* **with**: each statement ends with `$`, and may then run over several lines.\n",
+    "\n",
+    "Use one or the other within a text: if there is a `$` anywhere, the text is split at `$`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "93d7c8f7",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "the same model: True\n",
+      "FRML <> C = 0.6*YD+0.3*C(-1) $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <> Y = C+I+G $\n"
+     ]
+    }
+   ],
+   "source": [
+    "plain = \"\"\"\n",
+    "c  = 0.6*yd + 0.3*c(-1)\n",
+    "yd = y - t\n",
+    "y  = c + i + g\n",
+    "\"\"\"\n",
+    "\n",
+    "with_frml = \"\"\"\n",
+    "FRML <> c  = 0.6*yd\n",
+    "           + 0.3*c(-1) $\n",
+    "FRML <> yd = y - t $\n",
+    "FRML <> y  = c + i + g $\n",
+    "\"\"\"\n",
+    "\n",
+    "Mplain = Makemodel(plain, type_input='modelflow')\n",
+    "Mfrml = Makemodel(with_frml, type_input='modelflow')\n",
+    "print('the same model:', Mplain.normal_frml == Mfrml.normal_frml)\n",
+    "Mplain.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "98709a5e",
+   "metadata": {},
+   "source": [
+    "Lists can be passed separately with `list_defs=`, in the same plain form:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "3c1b109b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <> PROFIT__DANSKE = REVENUE__DANSKE-EXPENSES__DANSKE $\n",
+      "FRML <> PROFIT__NORDEA = REVENUE__NORDEA-EXPENSES__NORDEA $\n"
+     ]
+    }
+   ],
+   "source": [
+    "Mlist = Makemodel('doable <> profit__{banks} = revenue__{banks} - expenses__{banks}',\n",
+    "                  type_input='modelflow',\n",
+    "                  list_defs='list banks = banks : danske nordea')\n",
+    "Mlist.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5d2e84b0",
+   "metadata": {},
+   "source": [
+    "`type_input='single'` is for text which is already a complete stream of `FRML ... $` statements:\n",
+    "the line breaks are simply removed."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "98c619da",
+   "metadata": {},
+   "source": [
+    "## Your own format: separators\n",
+    "\n",
+    "When equations come from somewhere else, describe where they are:\n",
+    "\n",
+    "* `eq_end` -- the string which ends an equation. Without it, each line is one equation.\n",
+    "* `eq_start` -- the string which starts an equation. With it, all text **between** equations is\n",
+    "  ignored -- titles, notes, output from the program which wrote the file.\n",
+    "* `comment_start` -- the string which starts a comment; the rest of the line is dropped.\n",
+    "\n",
+    "Each can be one string or a list of strings. Markers are matched regardless of case, and a marker\n",
+    "made of letters only matches as a whole word: the start marker `EQ` does not match inside the\n",
+    "variable `EQUITY`.\n",
+    "\n",
+    "As an example, a model listing written by some other program. Each equation starts with\n",
+    "`EQUATION` and ends with `END`, and there is text in between which is not part of the model:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "afd4fb29",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <> C = 0.6*YD+0.3*C(-1) $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <> Y = C+I+G $\n"
+     ]
+    }
+   ],
+   "source": [
+    "listing = \"\"\"\n",
+    "Model listing, written 2026-10-01\n",
+    "EQUATION c = 0.6*yd + 0.3*c(-1) END\n",
+    "  (estimated 1990-2019)\n",
+    "EQUATION yd = y - t END\n",
+    "EQUATION y = c + i + g\n",
+    "         END\n",
+    "3 equations written\n",
+    "\"\"\"\n",
+    "\n",
+    "Mlisting = Makemodel(listing, eq_start='EQUATION', eq_end='END')\n",
+    "Mlisting.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e5a6a4d5",
+   "metadata": {},
+   "source": [
+    "Giving any of the four extraction arguments switches extraction on, so `type_input` can be left\n",
+    "at its default. To see what the extraction step itself makes of a text, call\n",
+    "`extract_equations` -- the function `Makemodel` uses:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "42000255",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "c = 0.6*yd + 0.3*c(-1)\n",
+      "yd = y - t\n",
+      "y = c + i + g\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(extract_equations(listing, start='EQUATION', end='END'))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8fb2f3ad",
+   "metadata": {},
+   "source": [
+    "## Your own format: a transformation function\n",
+    "\n",
+    "The separators find the equations; a **transformation function** translates each one. It is\n",
+    "called with one equation at a time -- the markers removed, comments dropped and all whitespace\n",
+    "collapsed to single spaces -- and returns it in ModelFlow form, `lhs = rhs` or\n",
+    "`<tags> lhs = rhs`. If it returns `None` or an empty string, the statement is dropped.\n",
+    "\n",
+    "Here equations end with `;`, comments start with `#`, lags are written in square brackets, and a\n",
+    "keyword at the start says what each statement is: `BEH` for a behavioural equation, `IDN` for an\n",
+    "identity. There is also a `PRINT` statement, which is not an equation at all."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "c032031c",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "BEH c = 0.6*yd + 0.3*c[-1]\n",
+      "BEH i = 0.2*(y[-1] - y[-2])\n",
+      "IDN yd = y - t\n",
+      "IDN y = c + i + g\n",
+      "PRINT y\n"
+     ]
+    }
+   ],
+   "source": [
+    "source = \"\"\"\n",
+    "# A small model in some other format\n",
+    "BEH c  = 0.6*yd + 0.3*c[-1] ;       # consumption\n",
+    "BEH i  = 0.2*(y[-1] - y[-2]) ;      # investment\n",
+    "IDN yd = y - t ;\n",
+    "IDN y  = c + i + g ;\n",
+    "PRINT y ;\n",
+    "\"\"\"\n",
+    "\n",
+    "print(extract_equations(source, end=';', comment='#'))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "50623041",
+   "metadata": {},
+   "source": [
+    "That is what the transformation function receives, one line at a time. It translates the lags,\n",
+    "turns the keyword into ModelFlow tags -- `<stoc>` gives a behavioural equation an add factor and\n",
+    "an exogenizing dummy -- and drops everything else:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "d793720f",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <STOC> C = (0.6*YD+0.3*C(-1) + C_A)* (1-C_D)+ C_X*C_D  $\n",
+      "FRML <STOC> I = (0.2*(Y(-1)-Y(-2)) + I_A)* (1-I_D)+ I_X*I_D  $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <> Y = C+I+G $\n",
+      "\n",
+      "FRML <CALC_ADD_FACTOR>  C_A = (C) - (0.6*YD+0.3*C(-1)) $ \n",
+      "FRML <CALC_ADD_FACTOR>  I_A = (I) - (0.2*(Y(-1)-Y(-2))) $\n"
+     ]
+    }
+   ],
+   "source": [
+    "def my_transform(stmt):\n",
+    "    \"\"\"One equation of the BEH/IDN format -> ModelFlow\"\"\"\n",
+    "    keyword, body = stmt.split(maxsplit=1)\n",
+    "    body = re.sub(r'\\[\\s*([+-]?\\d+)\\s*\\]', r'(\\1)', body)    # c[-1] -> c(-1)\n",
+    "    if keyword.upper() == 'BEH':\n",
+    "        return f'<stoc> {body}'\n",
+    "    if keyword.upper() == 'IDN':\n",
+    "        return body\n",
+    "    return None                                              # PRINT and the like\n",
+    "\n",
+    "\n",
+    "Mown = Makemodel(source, eq_end=';', comment_start='#', transform=my_transform)\n",
+    "Mown.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9e8cdb74",
+   "metadata": {},
+   "source": [
+    "The function can return any tag, also `<est=...>`, so equations from another system can be\n",
+    "estimated while the model is built, exactly as in the *Estimation* chapter."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fbd49dfa",
+   "metadata": {},
+   "source": [
+    "## Presets: Gekko and EViews\n",
+    "\n",
+    "Two formats come ready-made. `type_input='gekko'` and `type_input='eviews'` fill in the separators\n",
+    "and the transformation function:\n",
+    "\n",
+    "| `type_input` | `eq_start` | `eq_end` | `comment_start` | `transform` |\n",
+    "|---|---|---|---|---|\n",
+    "| `'gekko'` | `'FRML'` | `'$'` | `'()'` | `gekko_to_modelflow` |\n",
+    "| `'eviews'` | -- | -- (one per line) | `\"'\"` | `eviews_to_modelflow` |\n",
+    "\n",
+    "### Gekko\n",
+    "\n",
+    "A Gekko `FRML` carries a code, like `_SJRD`. `gekko_to_modelflow` reads the letters after the\n",
+    "first one: `J` gives an add factor, `D` an exogenizing dummy, so `J` and `D` together become\n",
+    "`<stoc>`, `J` alone `<add>`, `D` alone `<exo>`. It also translates `x[-1]` to `x(-1)`, `^` to\n",
+    "`**`, `dif(` to `diff(` and `pch(` to `pct_growth(`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "f5903ed6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<STOC> LOG(C) = 0.5*LOG(YD) + 0.4*LOG(C(-1)) + 0.1\n",
+      "<> YD = Y - T\n",
+      "<ADD> Y = C + I + G\n"
+     ]
+    }
+   ],
+   "source": [
+    "gekko_text = \"\"\"\n",
+    "() A small model in Gekko format\n",
+    "FRML _SJRD log(c) = 0.5*log(yd) + 0.4*log(c[-1]) + 0.1 $\n",
+    "FRML _I    yd = y - t $\n",
+    "FRML _GJR  y = c + i + g $\n",
+    "\"\"\"\n",
+    "\n",
+    "print(extract_equations(gekko_text, start='FRML', end='$', comment='()',\n",
+    "                        transform=gekko_to_modelflow))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "ae198d10",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <STOC> C = (EXP(C_A+ (0.5*LOG(YD)+0.4*LOG(C(-1))+0.1) )) * (1-C_D)+ C_X*C_D  $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <ADD> Y = (C+I+G + Y_A)                                $\n",
+      "\n",
+      "FRML <CALC_ADD_FACTOR>  C_A = - ((0.5*LOG(YD)+0.4*LOG(C(-1))+0.1)) +LOG(C) $ \n",
+      "FRML <CALC_ADD_FACTOR>  Y_A = (Y) - (C+I+G) $\n"
+     ]
+    }
+   ],
+   "source": [
+    "Mgekko = Makemodel(gekko_text, type_input='gekko')\n",
+    "Mgekko.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ac4e3e48",
+   "metadata": {},
+   "source": [
+    "### EViews\n",
+    "\n",
+    "EViews equations come one per line, with `'` starting a comment. `eviews_to_modelflow` gives an\n",
+    "`@identity` equation no tags, translates the EViews functions (`d(` to `diff(`, `@pc` to\n",
+    "`pct_growth`, `^` to `**`, ...), and gives every other equation the tags in `behavioral_opts`,\n",
+    "by default none:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "9af70cfc",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ImportError",
+     "evalue": "cannot import name 'GrabWf2Model' from 'modelgrabwf2' (c:\\modelflow2\\modelflow\\modelgrabwf2.py)",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+      "\u001b[31mImportError\u001b[39m                               Traceback (most recent call last)",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[12]\u001b[39m\u001b[32m, line 8\u001b[39m\n\u001b[32m      4\u001b[39m @identity yd = y - t\n\u001b[32m      5\u001b[39m @identity y = c + i + g\n\u001b[32m      6\u001b[39m \"\"\"\n\u001b[32m      7\u001b[39m \n\u001b[32m----> \u001b[39m\u001b[32m8\u001b[39m Meviews = Makemodel(eviews_text, type_input=\u001b[33m'eviews'\u001b[39m)\n\u001b[32m      9\u001b[39m Meviews.show\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m<string>:20\u001b[39m, in \u001b[36m__create_fn__.<locals>.__init__\u001b[39m\u001b[34m(self, original_statements, funks, var_description, replacements, list_defs, modelname, type_input, eq_start, eq_end, comment_start, transform, input_df, estimator, smpl, estimator_kwargs, estimator_classes, estimator_namespace)\u001b[39m\n",
+      "\u001b[36mFile \u001b[39m\u001b[32mc:\\modelflow2\\modelflow\\modelconstruct_estimation.py:2358\u001b[39m, in \u001b[36mMakemodel.__post_init__\u001b[39m\u001b[34m(self)\u001b[39m\n\u001b[32m   2356\u001b[39m        \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;28mgetattr\u001b[39m(\u001b[38;5;28mself\u001b[39m, name) \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m   2357\u001b[39m            \u001b[38;5;28msetattr\u001b[39m(\u001b[38;5;28mself\u001b[39m, name, default)\n\u001b[32m-> \u001b[39m\u001b[32m2358\u001b[39m    extracted_frml = to_line_mode(\u001b[38;5;28mself\u001b[39m.list_defs) + \u001b[33m'\u001b[39m\u001b[38;5;130;01m\\n\u001b[39;00m\u001b[33m'\u001b[39m + \u001b[30;43mextract_equations\u001b[39;49m\u001b[30;43m(\u001b[39;49m\n\u001b[32m   2359\u001b[39m \u001b[30;43m       \u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43moriginal_statements\u001b[39;49m\u001b[30;43m,\u001b[39;49m\n\u001b[32m   2360\u001b[39m \u001b[30;43m       \u001b[39;49m\u001b[30;43mstart\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43meq_start\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mend\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43meq_end\u001b[39;49m\u001b[30;43m,\u001b[39;49m\n\u001b[32m   2361\u001b[39m \u001b[30;43m       \u001b[39;49m\u001b[30;43mcomment\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43mcomment_start\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mtransform\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43mtransform\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m   2362\u001b[39m    \u001b[38;5;28mself\u001b[39m.markdown_model = \u001b[33m'\u001b[39m\u001b[33m'\u001b[39m\n\u001b[32m   2364\u001b[39m \u001b[38;5;28;01melif\u001b[39;00m \u001b[38;5;28mself\u001b[39m.type_input == \u001b[33m'\u001b[39m\u001b[33mmarkdown\u001b[39m\u001b[33m'\u001b[39m:\n",
+      "\u001b[36mFile \u001b[39m\u001b[32mc:\\modelflow2\\modelflow\\modelconstruct_estimation.py:534\u001b[39m, in \u001b[36mextract_equations\u001b[39m\u001b[34m(text, start, end, comment, transform)\u001b[39m\n\u001b[32m    532\u001b[39m     \u001b[38;5;28;01mcontinue\u001b[39;00m\n\u001b[32m    533\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m transform \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m--> \u001b[39m\u001b[32m534\u001b[39m     stmt = \u001b[30;43mtransform\u001b[39;49m\u001b[30;43m(\u001b[39;49m\u001b[30;43mstmt\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m    535\u001b[39m     \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m stmt \u001b[38;5;129;01mor\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m stmt.strip():\n\u001b[32m    536\u001b[39m         \u001b[38;5;28;01mcontinue\u001b[39;00m\n",
+      "\u001b[36mFile \u001b[39m\u001b[32mc:\\modelflow2\\modelflow\\modelconstruct_estimation.py:604\u001b[39m, in \u001b[36meviews_to_modelflow\u001b[39m\u001b[34m(stmt, behavioral_opts)\u001b[39m\n\u001b[32m    596\u001b[39m \u001b[38;5;28;01mdef\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34meviews_to_modelflow\u001b[39m(stmt: \u001b[38;5;28mstr\u001b[39m, behavioral_opts: \u001b[38;5;28mstr\u001b[39m = \u001b[33m'\u001b[39m\u001b[33m<>\u001b[39m\u001b[33m'\u001b[39m) -> \u001b[38;5;28mstr\u001b[39m:\n\u001b[32m    597\u001b[39m \u001b[38;5;250m    \u001b[39m\u001b[33;03m\"\"\"Translate one EViews equation to ModelFlow form.\u001b[39;00m\n\u001b[32m    598\u001b[39m \n\u001b[32m    599\u001b[39m \u001b[33;03m    ``@IDENTITY`` equations get ``<>``, all other equations get\u001b[39;00m\n\u001b[32m   (...)\u001b[39m\u001b[32m    602\u001b[39m \u001b[33;03m    (``D(`` -> ``DIFF(``, ``@PC`` -> ``PCT_GROWTH``, ``^`` -> ``**`` ...).\u001b[39;00m\n\u001b[32m    603\u001b[39m \u001b[33;03m    \"\"\"\u001b[39;00m\n\u001b[32m--> \u001b[39m\u001b[32m604\u001b[39m     \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmodelgrabwf2\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m GrabWf2Model\n\u001b[32m    606\u001b[39m     m = re.match(\u001b[33mr\u001b[39m\u001b[33m'\u001b[39m\u001b[33m\\\u001b[39m\u001b[33ms*@IDENTITY\u001b[39m\u001b[33m\\\u001b[39m\u001b[33ms+(.*)\u001b[39m\u001b[33m'\u001b[39m, stmt, flags=re.IGNORECASE | re.DOTALL)\n\u001b[32m    607\u001b[39m     opts, body = (\u001b[33m'\u001b[39m\u001b[33m<>\u001b[39m\u001b[33m'\u001b[39m, m.group(\u001b[32m1\u001b[39m)) \u001b[38;5;28;01mif\u001b[39;00m m \u001b[38;5;28;01melse\u001b[39;00m (behavioral_opts, stmt)\n",
+      "\u001b[31mImportError\u001b[39m: cannot import name 'GrabWf2Model' from 'modelgrabwf2' (c:\\modelflow2\\modelflow\\modelgrabwf2.py)"
+     ]
+    }
+   ],
+   "source": [
+    "eviews_text = \"\"\"\n",
+    "' A small model in EViews format\n",
+    "log(c) = 0.5*log(yd) + 0.4*log(c(-1)) + 0.1\n",
+    "@identity yd = y - t\n",
+    "@identity y = c + i + g\n",
+    "\"\"\"\n",
+    "\n",
+    "Meviews = Makemodel(eviews_text, type_input='eviews')\n",
+    "Meviews.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "834bf941",
+   "metadata": {},
+   "source": [
+    "### Adjusting a preset\n",
+    "\n",
+    "A preset only fills in what is not given, so any of the four arguments can be overridden while the\n",
+    "rest of the preset is kept. The translation functions take options of their own, which\n",
+    "`functools.partial` binds:\n",
+    "\n",
+    "* `gekko_to_modelflow(stmt, code_map=...)` -- a dict from code to tags, or a function of the code;\n",
+    "  codes missing from a dict get the default translation;\n",
+    "* `eviews_to_modelflow(stmt, behavioral_opts=...)` -- the tags for the behavioural equations."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "0dee29b9",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ImportError",
+     "evalue": "cannot import name 'GrabWf2Model' from 'modelgrabwf2' (c:\\modelflow2\\modelflow\\modelgrabwf2.py)",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+      "\u001b[31mImportError\u001b[39m                               Traceback (most recent call last)",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[13]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m Meviews_stoc = Makemodel(eviews_text, type_input='eviews',\n\u001b[32m      2\u001b[39m                          transform=functools.partial(eviews_to_modelflow, behavioral_opts=\u001b[33m'<stoc>'\u001b[39m))\n\u001b[32m      3\u001b[39m Meviews_stoc.show\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m<string>:20\u001b[39m, in \u001b[36m__create_fn__.<locals>.__init__\u001b[39m\u001b[34m(self, original_statements, funks, var_description, replacements, list_defs, modelname, type_input, eq_start, eq_end, comment_start, transform, input_df, estimator, smpl, estimator_kwargs, estimator_classes, estimator_namespace)\u001b[39m\n",
+      "\u001b[36mFile \u001b[39m\u001b[32mc:\\modelflow2\\modelflow\\modelconstruct_estimation.py:2358\u001b[39m, in \u001b[36mMakemodel.__post_init__\u001b[39m\u001b[34m(self)\u001b[39m\n\u001b[32m   2356\u001b[39m        \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;28mgetattr\u001b[39m(\u001b[38;5;28mself\u001b[39m, name) \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m   2357\u001b[39m            \u001b[38;5;28msetattr\u001b[39m(\u001b[38;5;28mself\u001b[39m, name, default)\n\u001b[32m-> \u001b[39m\u001b[32m2358\u001b[39m    extracted_frml = to_line_mode(\u001b[38;5;28mself\u001b[39m.list_defs) + \u001b[33m'\u001b[39m\u001b[38;5;130;01m\\n\u001b[39;00m\u001b[33m'\u001b[39m + \u001b[30;43mextract_equations\u001b[39;49m\u001b[30;43m(\u001b[39;49m\n\u001b[32m   2359\u001b[39m \u001b[30;43m       \u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43moriginal_statements\u001b[39;49m\u001b[30;43m,\u001b[39;49m\n\u001b[32m   2360\u001b[39m \u001b[30;43m       \u001b[39;49m\u001b[30;43mstart\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43meq_start\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mend\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43meq_end\u001b[39;49m\u001b[30;43m,\u001b[39;49m\n\u001b[32m   2361\u001b[39m \u001b[30;43m       \u001b[39;49m\u001b[30;43mcomment\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43mcomment_start\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mtransform\u001b[39;49m\u001b[30;43m=\u001b[39;49m\u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43mtransform\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m   2362\u001b[39m    \u001b[38;5;28mself\u001b[39m.markdown_model = \u001b[33m'\u001b[39m\u001b[33m'\u001b[39m\n\u001b[32m   2364\u001b[39m \u001b[38;5;28;01melif\u001b[39;00m \u001b[38;5;28mself\u001b[39m.type_input == \u001b[33m'\u001b[39m\u001b[33mmarkdown\u001b[39m\u001b[33m'\u001b[39m:\n",
+      "\u001b[36mFile \u001b[39m\u001b[32mc:\\modelflow2\\modelflow\\modelconstruct_estimation.py:534\u001b[39m, in \u001b[36mextract_equations\u001b[39m\u001b[34m(text, start, end, comment, transform)\u001b[39m\n\u001b[32m    532\u001b[39m     \u001b[38;5;28;01mcontinue\u001b[39;00m\n\u001b[32m    533\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m transform \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m--> \u001b[39m\u001b[32m534\u001b[39m     stmt = \u001b[30;43mtransform\u001b[39;49m\u001b[30;43m(\u001b[39;49m\u001b[30;43mstmt\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m    535\u001b[39m     \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m stmt \u001b[38;5;129;01mor\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m stmt.strip():\n\u001b[32m    536\u001b[39m         \u001b[38;5;28;01mcontinue\u001b[39;00m\n",
+      "\u001b[36mFile \u001b[39m\u001b[32mc:\\modelflow2\\modelflow\\modelconstruct_estimation.py:604\u001b[39m, in \u001b[36meviews_to_modelflow\u001b[39m\u001b[34m(stmt, behavioral_opts)\u001b[39m\n\u001b[32m    596\u001b[39m \u001b[38;5;28;01mdef\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34meviews_to_modelflow\u001b[39m(stmt: \u001b[38;5;28mstr\u001b[39m, behavioral_opts: \u001b[38;5;28mstr\u001b[39m = \u001b[33m'\u001b[39m\u001b[33m<>\u001b[39m\u001b[33m'\u001b[39m) -> \u001b[38;5;28mstr\u001b[39m:\n\u001b[32m    597\u001b[39m \u001b[38;5;250m    \u001b[39m\u001b[33;03m\"\"\"Translate one EViews equation to ModelFlow form.\u001b[39;00m\n\u001b[32m    598\u001b[39m \n\u001b[32m    599\u001b[39m \u001b[33;03m    ``@IDENTITY`` equations get ``<>``, all other equations get\u001b[39;00m\n\u001b[32m   (...)\u001b[39m\u001b[32m    602\u001b[39m \u001b[33;03m    (``D(`` -> ``DIFF(``, ``@PC`` -> ``PCT_GROWTH``, ``^`` -> ``**`` ...).\u001b[39;00m\n\u001b[32m    603\u001b[39m \u001b[33;03m    \"\"\"\u001b[39;00m\n\u001b[32m--> \u001b[39m\u001b[32m604\u001b[39m     \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmodelgrabwf2\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m GrabWf2Model\n\u001b[32m    606\u001b[39m     m = re.match(\u001b[33mr\u001b[39m\u001b[33m'\u001b[39m\u001b[33m\\\u001b[39m\u001b[33ms*@IDENTITY\u001b[39m\u001b[33m\\\u001b[39m\u001b[33ms+(.*)\u001b[39m\u001b[33m'\u001b[39m, stmt, flags=re.IGNORECASE | re.DOTALL)\n\u001b[32m    607\u001b[39m     opts, body = (\u001b[33m'\u001b[39m\u001b[33m<>\u001b[39m\u001b[33m'\u001b[39m, m.group(\u001b[32m1\u001b[39m)) \u001b[38;5;28;01mif\u001b[39;00m m \u001b[38;5;28;01melse\u001b[39;00m (behavioral_opts, stmt)\n",
+      "\u001b[31mImportError\u001b[39m: cannot import name 'GrabWf2Model' from 'modelgrabwf2' (c:\\modelflow2\\modelflow\\modelgrabwf2.py)"
+     ]
+    }
+   ],
+   "source": [
+    "Meviews_stoc = Makemodel(eviews_text, type_input='eviews',\n",
+    "                         transform=functools.partial(eviews_to_modelflow, behavioral_opts='<stoc>'))\n",
+    "Meviews_stoc.show"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "e947c2f7",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <STOC> C = (EXP(C_A+ (0.5*LOG(YD)+0.4*LOG(C(-1))+0.1) )) * (1-C_D)+ C_X*C_D  $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <EXO> Y = (C+I+G)* (1-Y_D)+ Y_X*Y_D $\n",
+      "\n",
+      "FRML <CALC_ADD_FACTOR>  C_A = - ((0.5*LOG(YD)+0.4*LOG(C(-1))+0.1)) +LOG(C) $\n"
+     ]
+    }
+   ],
+   "source": [
+    "Mgekko_exo = Makemodel(gekko_text, type_input='gekko',\n",
+    "                       transform=functools.partial(gekko_to_modelflow, code_map={'_GJR': '<exo>'}))\n",
+    "Mgekko_exo.show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2f1fa06f",
+   "metadata": {},
+   "source": [
+    "A transformation function of your own can also build on a preset one -- do your own translations\n",
+    "first, then hand the equation on:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "80decbcd",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "FRML <STOC> C = (EXP(C_A+ (0.5*LOG(YD)+0.4*LOG(C(-1))+0.1) )) * (1-C_D)+ C_X*C_D  $\n",
+      "FRML <> YD = Y-T $\n",
+      "FRML <ADD> Y = (C+I+G + Y_A)                                $\n",
+      "\n",
+      "FRML <CALC_ADD_FACTOR>  C_A = - ((0.5*LOG(YD)+0.4*LOG(C(-1))+0.1)) +LOG(C) $ \n",
+      "FRML <CALC_ADD_FACTOR>  Y_A = (Y) - (C+I+G) $\n"
+     ]
+    }
+   ],
+   "source": [
+    "def my_gekko(stmt):\n",
+    "    \"\"\"Gekko, with the variable name YD written as YDISP in the source\"\"\"\n",
+    "    return gekko_to_modelflow(re.sub(r'\\bydisp\\b', 'yd', stmt, flags=re.IGNORECASE))\n",
+    "\n",
+    "\n",
+    "Makemodel(gekko_text.replace('yd', 'ydisp'), type_input='gekko', transform=my_gekko).show"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b1dec3d4",
+   "metadata": {},
+   "source": [
+    "## Quick reference\n",
+    "\n",
+    "```python\n",
+    "Makemodel(text)                                   # Markdown: equations on lines starting with >\n",
+    "Makemodel(text, type_input='modelflow')           # plain ModelFlow, with or without FRML ... $\n",
+    "Makemodel(text, type_input='gekko')               # Gekko FRML ... $ with codes\n",
+    "Makemodel(text, type_input='eviews')              # EViews, one equation per line\n",
+    "Makemodel(text, eq_start='EQUATION', eq_end='END',\n",
+    "          comment_start='#', transform=my_transform)   # a format of your own\n",
+    "```\n",
+    "\n",
+    "| What you need | How |\n",
+    "|---|---|\n",
+    "| Equations spanning several lines | `eq_end=` |\n",
+    "| Ignore text between equations | `eq_start=` |\n",
+    "| Comments | `comment_start=` |\n",
+    "| Several markers | a list, e.g. `eq_end=['$', ';']` |\n",
+    "| Translate or tag each equation | `transform=`, a function `str -> str` |\n",
+    "| Drop a statement | let `transform` return `None` |\n",
+    "| Change a preset | pass the argument, the rest of the preset is kept |\n",
+    "| Options of a preset function | `functools.partial(gekko_to_modelflow, code_map=...)` |\n",
+    "| Lists | `list_defs=`, Markdown for Markdown input, plain text otherwise |\n",
+    "| See what was extracted | `extract_equations(text, start=..., end=..., comment=..., transform=...)` |"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "015aacec-6b7b-41bb-9672-5e883500a99d",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b069a91a-ed34-4301-836e-063753530843",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.14.6"
+  },
+  "widgets": {
+   "application/vnd.jupyter.widget-state+json": {
+    "state": {},
+    "version_major": 2,
+    "version_minor": 0
+   }
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

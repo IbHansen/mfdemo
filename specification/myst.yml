@@ -14,7 +14,9 @@ project:
         - intro.md
         - model specification.ipynb
         - jupyter_magic_makemymodel.ipynb
+        - input formats.ipynb
         - estimation.ipynb
+        - fixed periods.ipynb
         - normal.ipynb
         - add factors.ipynb
     - format: tex
@@ -28,8 +30,12 @@ project:
       title: Model specification
     - file: jupyter_magic_makemymodel.ipynb
       title: The %%Makemymodel magic
+    - file: input formats.ipynb
+      title: Input formats
     - file: estimation.ipynb
       title: Estimation
+    - file: fixed periods.ipynb
+      title: Variables at a fixed period
     - file: normal.ipynb
       title: Normalization
     - file: add factors.ipynb

@@ -28,6 +28,12 @@ front end: writing Markdown documentation and `>` equations in the same cell, th
 available options (`show`, `draw`, `render`, `latex`), and how `segment=` lets you build
 a large model from independently developed pieces.
 
+**[Input formats](input%20formats.ipynb)** is about the text `Makemodel` is given. Markdown is
+the main road, but `type_input=` also reads plain ModelFlow text (with or without
+`FRML ... $`), Gekko and EViews equations, and with `eq_start=`, `eq_end=`,
+`comment_start=` and `transform=` you describe a format of your own: where an equation
+starts and ends, what a comment is, and a function which translates each equation.
+
 **[Estimation](estimation.ipynb)** covers the behavioural equations, whose coefficients
 come from data rather than from accounting: the equation syntax for coefficients and
 constraints, the `ols` and `nls_lmfit` backends, and how an equation tagged
@@ -35,6 +41,11 @@ constraints, the `ols` and `nls_lmfit` backends, and how an equation tagged
 demonstrated on small synthetic data where the right answer is known in advance; a
 complete estimation on real data is a supplement of its own, *ModelFlow - Estimation, a
 worked example*.
+
+**[Variables at a fixed period](fixed%20periods.ipynb)** covers `X(2015)` -- the value of `X`
+in one particular period, as in an index with 2015 = 100 -- and `X('2015Q1')` for quarterly
+and monthly data: the syntax, how a model evaluates it, which solvers can solve an
+endogenous variable at a fixed period inside the solve span, and how it works in estimation.
 
 **[Normalization](normal.ipynb)** goes one level down, to the `normal` function that
 rewrites an equation into `y = F(y, x)` form, and to the `Normalized_frml` class that
