@@ -200,6 +200,7 @@ This needed a number of changes and fixes, listed below.
 | 2.80 | Whole-model graphs are layered by the logical order |
 | 2.82 | Networkx drawings show links back over periods (`gdp -> gdp(-1)`) |
 | 2.83 | `model.causality(var)`: interactive causality graph that works in JupyterLab, VS Code and JupyterLite; click a variable to move to it |
+| next | Where the causality viewer is not run, as in a static book, it shows "Interactive causality viewer for VAR, run the notebook to use it" instead of the object's address |
 
 (changes-reporting)=
 ### Reporting and display
