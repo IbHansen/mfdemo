@@ -1,6 +1,6 @@
-# All changes since the book (2.59–2.92)
+# All changes since the book (2.59–2.94)
 
-This chapter lists every change from 2.59 to **2.92** (October 2026), based on `changelog.md`, grouped by topic. The version column shows the release where a change first shipped; *next* marks changes that are in the source but not yet released. For worked examples of the main features, see [New features by example](whats_new.ipynb).
+This chapter lists every change from 2.59 to **2.94** (November 2026), based on `changelog.md`, grouped by topic. The version column shows the release where a change first shipped; *next* marks changes that are in the source but not yet released. For worked examples of the main features, see [New features by example](whats_new.ipynb).
 
 (changes-ng)=
 ## Next-generation (`_ng`) solvers
@@ -35,6 +35,11 @@ From 2.89 a model can use the `_ng` solvers as its default: create or load it wi
 | 2.89 | `newtonstack_ng` splits the model into prolog, core and epilog by default (`split=1`); the three parts run as compiled period loops, so the split also gains from jit (FRB/US with model-consistent expectations: 0.2–0.3 s per shock with jit) |
 | 2.90 | `newtonstack_ng` and `newtonstack_fbmin_ng` solve models with an endogenous variable at a fixed period inside the solve span, such as `Z = Y/Y(2006)*100` solved 2003–2010; the per-period solvers still refuse it and point to the stacked solvers |
 | 2.91 | `model.stack_info()` prints the size of the last stacked Newton system: periods, prolog/core/epilog split, Jacobian nonzeros and the memory of the LU factorization |
+| 2.93 | `factorizer=` for `newton_ng` and `newtonstack_ng` also takes `'pardiso'` (MKL PARDISO LU), `'normal'` (the Newton step through the normal equations with a PARDISO Cholesky factorization, refined against the Jacobian), `'mumps'` (in this process or a helper process named by `MODELFLOW_MUMPS_PYTHON`) or a function `f(J)` returning `solve(b)`: for stacked systems too large for SuperLU. The methods are in the new module `modelfactorize` and raise when their linear solve is inaccurate |
+| 2.93 | `factorizer='pardiso'` and `'normal'` free PARDISO's memory before a new factorization, so the peak is one factorization (before, every factorization stayed until Python ended) |
+| 2.93 | The Newton solvers keep the symbolic derivatives on the model (`model.diff_expressions`) and reuse them when the equations and options are the same |
+| 2.94 | `newtonstack_ng` no longer runs the search for feedback variables, which it does not use (first stacked solve of MAKRO, 30 years: 185 → 57 s) |
+| 2.94 | `newtonstack_ng` and `newtonstack_fbmin_ng` fill the stacked Jacobian from a fill plan: the sparsity pattern is made once and a rebuild only places the new values; `stackfill='melt'` gives the former fill |
 
 ## Building and estimating models
 
@@ -97,6 +102,7 @@ This is a new way to write a model: describe it in a Markdown notebook cell, wit
 | `show`, `draw`, `latex`, `display` | Print the FRMLs, draw the graph, produce LaTeX |
 | `%%mdmodel` | Revised Markdown model magic with LaTeX output (2.63) |
 
+(changes-estimators)=
 ### Estimators (`modelestimator_new`)
 
 | Feature | What it does |
@@ -113,6 +119,8 @@ This is a new way to write a model: describe it in a Markdown notebook cell, wit
 | Checks before fitting | Syntax, missing variables, sample with missing lags/leads (2.78–2.79) |
 | t-values | `.tvalues` per equation, `mm.tvalues` for the whole model (2.78) |
 | `.af_df`, `.residuals_df` | Actual vs. fitted and residuals |
+| `.af_level_df` | Actual, fitted and residuals of the variable itself (`CON` when the left-hand side is `DLOG(CON)`, one-step fit), columns `CON__Actual`, `CON__Fitted`, `CON__Residuals` (2.94) |
+| `mm.actual_fitted()` | `af_level_df` of all estimated equations in one frame, columns `(CON, Actual)` ...; `level=False` gives the left-hand-side units (2.94) |
 | `EstimatorBackend` | Base class: a new estimator only needs `_fit` and `_render_summary_html` |
 | `EqContainer` | Combines estimated equations into one model with add factors |
 
@@ -126,6 +134,7 @@ This is a new way to write a model: describe it in a Markdown notebook cell, wit
 | `mm.report()` | `MakeModelReport`: the whole model documentation as HTML, with a table of contents and collapsible estimation panels |
 | `mm.pdf()` | The model documentation as PDF |
 | PNG plots by default | So notebooks with estimations also export to PDF in Jupyter Book |
+| Level plot | When the left-hand side is a transformation such as `DLOG(CON)`, the report also plots actual, fitted and residuals of `CON` itself; `plot_actual_vs_fitted(est, level=True)` (2.94) |
 
 (changes-deployment)=
 ## Deployment in the cloud and the browser
@@ -200,7 +209,7 @@ This needed a number of changes and fixes, listed below.
 | 2.80 | Whole-model graphs are layered by the logical order |
 | 2.82 | Networkx drawings show links back over periods (`gdp -> gdp(-1)`) |
 | 2.83 | `model.causality(var)`: interactive causality graph that works in JupyterLab, VS Code and JupyterLite; click a variable to move to it |
-| next | Where the causality viewer is not run, as in a static book, it shows "Interactive causality viewer for VAR, run the notebook to use it" instead of the object's address |
+| 2.93 | Where the causality viewer is not run, as in a static book, it shows "Interactive causality viewer for VAR, run the notebook to use it" instead of the object's address |
 
 (changes-reporting)=
 ### Reporting and display
@@ -233,6 +242,15 @@ This needed a number of changes and fixes, listed below.
 | 2.84 | `modelinput_shiny.make_app(widgetdef)`: a standalone Shiny app built from the same widget definitions, which also runs in the browser with Shinylive |
 | 2.84 | `show_app` shows a Shiny app inside a notebook |
 
+(changes-ode)=
+### ODE models (`modelode`)
+
+| Version | Change |
+|---|---|
+| 2.93 | New module `modelode`: laws of motion written as `<ODE>` equations (or Euler steps) are turned into the equations of a one-step Runge-Kutta method (`euler`, `heun`, `midpoint`, `ralston`, `rk4` or your own Butcher tableau), solved by the ordinary solver with one row per time step |
+| 2.93 | `ode_makemodel`: ODE models as documented markdown models on top of `Makemodel`; `NO{list}` means all the other elements of a list |
+| 2.93 | N-body helpers: `nbody_template`, `nbody_makemodel`, `make_df`, `zero_momentum`, `energy`, `orbital_period` |
+
 (changes-files)=
 ### Model files and helpers
 
@@ -244,6 +262,9 @@ This needed a number of changes and fixes, listed below.
 | 2.79 | Structure-only `.pcims` files: dump without data, load with `run=False` |
 | 2.79 | `large=True` falls back to json when there is no dataframe |
 | 2.90 | `model.run_on_load = True` is saved by `modeldump`; `modelload` then simulates the model with the saved period and options (`run=None` is the new default; `run=True`/`False` still decides) |
+| 2.93 | `modeldump` stores `straight`, and `modelload` uses it: a model made with `straight=True` loads without sorting and without the search for feedback variables; `modelload(..., straight=False)` overrides |
+| 2.93 | `modeldump(derivatives=True)` stores the symbolic derivatives in the `.pcim`/`.pcimz` file, so a later session skips the differentiation (2 minutes for a model with 20,000 equations) |
+| 2.93 | `modeldump(large=True)` no longer fails on a model that was never solved |
 
 ## Onboarding
 
@@ -297,7 +318,9 @@ This needed a number of changes and fixes, listed below.
 | 2.88 | The `fair_max_iterations` option is no longer ignored |
 | 2.88 | Legacy jit solvers rebuild the transpiled code when it changes |
 | 2.90 | `newtonstack_ng(split=1)` works when the core reads no core variable (only leads or a fixed period of the prolog); it raised `AttributeError` |
-| next | A solution with NaN or inf is no longer reported as converged, in the `_ng` solvers and in `sim`, `sim1d` and `base_sim`; the Gauss-Seidel solvers stop iterating and name the NaN variables |
+| 2.93 | A solution with NaN or inf is no longer reported as converged, in the `_ng` solvers and in `sim`, `sim1d` and `base_sim`; the Gauss-Seidel solvers stop iterating and name the NaN variables |
+| 2.93 | The `_ng` solvers keep the iteration dump (`model.dumpdf`) when an equation raises, as `sim` does; `newton_fbmin_ng` names the failing period when the error comes in its first Jacobian |
+| 2.93 | `newtonstack_ng` no longer prints "Houston, we have a problem" or overwrites `.errdump` when a failed line-search step is backed off; the dump comes only if the solver gives up |
 
 ### Equations and parsing
 
@@ -309,6 +332,7 @@ This needed a number of changes and fixes, listed below.
 | 2.88 | `CONSUM(-1)` is no longer read as `SUM`, and `RDIFF(-1)` is no longer read as `DIFF` |
 | 2.89 | A function name followed by a signed number, such as `LOG(+25)`, loads again (2.88 refused it, which stopped FRB/US models from loading) |
 | 2.92 | Makemodel `type_input='eviews'` no longer fails with an `ImportError` |
+| 2.94 | Makemodel `type_input='single'` joins the lines with a space, so a tag on its own line followed by the equation no longer fails with "FRML does not match required pattern" |
 
 ### Attribution, reports and display
 
@@ -321,6 +345,7 @@ This needed a number of changes and fixes, listed below.
 | 2.78 | Continuation lines in HTML reports fixed |
 | 2.88 | `dekomp` works with `basedf=` / `altdf=` and follows a changed `smpl` |
 | 2.88 | `explain` uses the current attribution for "% Explained by" |
+| 2.93 | `model.draw`, `tracepre` and `tracedep` no longer fail with a graphviz syntax error when a variable description contains a double quote |
 
 ### Other
 
@@ -344,4 +369,4 @@ Code written for the book may behave differently in these cases:
 | 2.88 | `model.test_model` is the new version; the old one is `model.test_model_old` |
 | 2.88 | `model_Excel` is now `modelgrabexcel` (the old name warns) |
 | 2.89 | `newtonstack_ng` uses `split=1` by default; `split=0` gives the old behaviour (the solutions agree within the convergence tolerance) |
-| next | A run that ends with NaN or inf in the solution now reports non-convergence; before, it could be reported as converged |
+| 2.93 | A run that ends with NaN or inf in the solution now reports non-convergence; before, it could be reported as converged |
