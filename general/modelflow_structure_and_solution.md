@@ -311,7 +311,7 @@ ModelFlow constructs it from the structure of the stacked Jacobian itself. Each 
 
 The payoff is that the acyclic sweeps may now run *across* periods. An equation whose inputs happen to be known, whether from an earlier period or a later one, is simply evaluated; only the stacked feedback unknowns are given to Newton. Models with leads are covered by exactly the same machinery as models without them, and the reduced system is a small fraction of the full stacked one.
 
-This allows forward-looking models to be solved as one simultaneous intertemporal system while exploiting Python's highly optimized sparse-matrix libraries.
+This allows forward-looking models to be solved as one simultaneous intertemporal system while exploiting Python's highly optimized sparse-matrix libraries. What that costs for large models, and how to bring the cost down, is the subject of [Forward-looking models, and making them fast](modelflow_forward_looking.md).
 
 ---
 

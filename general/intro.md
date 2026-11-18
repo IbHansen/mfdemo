@@ -25,7 +25,7 @@ normalization, dimensional expansion — and generates ordinary Python for every
 
 ## What is in this book
 
-The four chapters follow one chain, and are ordered so that each takes over where the
+The five chapters follow one chain, and are ordered so that each takes over where the
 last leaves off.
 
 **[Historical background](Historic_complete.md)** comes first because it explains why the
@@ -51,6 +51,13 @@ shrinks the problem that remains — then the solvers that use all of it: Gauss-
 Newton, Newton reduced to the feedback variables, and stacked Newton when leads couple
 the periods together.
 
+**[Forward-looking models, and making them fast](modelflow_forward_looking.md)** follows
+the stacked Newton solver into practice. With FRB/US (95,748 stacked unknowns, badly
+conditioned) and MAKRO (1.5 million unknowns) as the two extremes, it covers what to
+stack and what to solve period by period, which work can be reused between shocks, how
+to choose the linear solver of the Newton step, and how to tune it for a very large
+system.
+
 **[Local stability and dynamics](modelflow_stability.md)** turns the derivative machinery
 to a different purpose. The Jacobian built for a Newton step is a linearization, and it
 can be analysed instead of iterated on: contemporaneous effects solved out, lags assembled
@@ -60,10 +67,10 @@ oscillate or grow.
 ## How to read it
 
 The history stands on its own and can be skipped by anyone who only wants to know how the
-system works today. The three technical chapters are meant to be read in order — the
-second begins from the executable equations the first produces, and the third from the
-Jacobian the second builds — but each states its own starting point, so they can also be
-consulted separately.
+system works today. The four technical chapters are meant to be read in order — the
+second begins from the executable equations the first produces, the third from the
+stacked Newton solver the second introduces, and the fourth from the Jacobian the second
+builds — but each states its own starting point, so they can also be consulted separately.
 
 Two conventions are worth flagging. Generated code is treated throughout as an
 implementation detail that the modeller is not expected to read; where it appears, it is

@@ -120,7 +120,7 @@ This is a new way to write a model: describe it in a Markdown notebook cell, wit
 | t-values | `.tvalues` per equation, `mm.tvalues` for the whole model (2.78) |
 | `.af_df`, `.residuals_df` | Actual vs. fitted and residuals |
 | `.af_level_df` | Actual, fitted and residuals of the variable itself (`CON` when the left-hand side is `DLOG(CON)`, one-step fit), columns `CON__Actual`, `CON__Fitted`, `CON__Residuals` (2.94) |
-| `mm.actual_fitted()` | `af_level_df` of all estimated equations in one frame, columns `(CON, Actual)` ...; `level=False` gives the left-hand-side units (2.94) |
+| `mm.actual_fitted()` | `af_level_df` of all estimated equations in one frame, columns `(CON, Actual)` ...; `level=False` gives the left-hand-side units; also for combined models (`Listmodels`, `mm1 + mm2`) (2.94) |
 | `EstimatorBackend` | Base class: a new estimator only needs `_fit` and `_render_summary_html` |
 | `EqContainer` | Combines estimated equations into one model with add factors |
 
