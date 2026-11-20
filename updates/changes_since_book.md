@@ -40,6 +40,9 @@ From 2.89 a model can use the `_ng` solvers as its default: create or load it wi
 | 2.93 | The Newton solvers keep the symbolic derivatives on the model (`model.diff_expressions`) and reuse them when the equations and options are the same |
 | 2.94 | `newtonstack_ng` no longer runs the search for feedback variables, which it does not use (first stacked solve of MAKRO, 30 years: 185 → 57 s) |
 | 2.94 | `newtonstack_ng` and `newtonstack_fbmin_ng` fill the stacked Jacobian from a fill plan: the sparsity pattern is made once and a rebuild only places the new values; `stackfill='melt'` gives the former fill |
+| *next* | `factorizer=` takes options for `'normal'` and `'pardiso'`: `iparm` (PARDISO settings; `{1: 13}` is the faster factorization of oneMKL 2026, dropped with a note on an older MKL), `krylov=True` (GMRES preconditioned by the factorization) and `refine_tol` (accuracy of the linear solve, default 1e-11). Give them as a dict, `factorizer={'method': 'normal', 'iparm': {1: 13}, 'refine_tol': 1e-6}`, or as `modelfactorize.normal(...)`. A dict is saved by `modeldump`, so a loaded model solves the same way, and an equal dict keeps the factorization between solves. MAKRO with `refine_tol=1e-6` and `ljit=True`: one DREAM shock 6.8 → 1.5 min, all eleven standard shocks 45 → 11 min, same solutions within the convergence tolerance |
+| *next* | The refinement in `'pardiso'`, `'normal'` and `'mumps'` stops when the residual stops falling and returns the best solution seen; the accuracy warning follows `refine_tol` |
+| *next* | With `ljit=True` the numba compile progress bars follow `silent` and show only when the code is really compiled, not when it is loaded from the cache |
 
 ## Building and estimating models
 
@@ -121,6 +124,7 @@ This is a new way to write a model: describe it in a Markdown notebook cell, wit
 | `.af_df`, `.residuals_df` | Actual vs. fitted and residuals |
 | `.af_level_df` | Actual, fitted and residuals of the variable itself (`CON` when the left-hand side is `DLOG(CON)`, one-step fit), columns `CON__Actual`, `CON__Fitted`, `CON__Residuals` (2.94) |
 | `mm.actual_fitted()` | `af_level_df` of all estimated equations in one frame, columns `(CON, Actual)` ...; `level=False` gives the left-hand-side units; also for combined models (`Listmodels`, `mm1 + mm2`) (2.94) |
+| `Estimate_r_lm`, `Estimate_r_nls` | R as estimation engine (module `modelestimator_r`): `lm`, Newey-West (`hac`), 2SLS (`ivreg`), `nls` and `nlsLM`; `<estimator=r_lm>` / `<estimator=r_nls>` in a model. Runs R through `Rscript` or rpy2 and checks that R's residuals match ModelFlow's (*next*) |
 | `EstimatorBackend` | Base class: a new estimator only needs `_fit` and `_render_summary_html` |
 | `EqContainer` | Combines estimated equations into one model with add factors |
 
@@ -265,6 +269,9 @@ This needed a number of changes and fixes, listed below.
 | 2.93 | `modeldump` stores `straight`, and `modelload` uses it: a model made with `straight=True` loads without sorting and without the search for feedback variables; `modelload(..., straight=False)` overrides |
 | 2.93 | `modeldump(derivatives=True)` stores the symbolic derivatives in the `.pcim`/`.pcimz` file, so a later session skips the differentiation (2 minutes for a model with 20,000 equations) |
 | 2.93 | `modeldump(large=True)` no longer fails on a model that was never solved |
+| *next* | `modeldump(savebase=True)` stores the `basedf` instead of the `lastdf`, for instance the baseline after an experiment has been run; one dataframe, so the file stays small. `keep=True` adds the kept solutions as before |
+| *next* | `modeldump` leaves out solve options that can't be stored as JSON (a user function as `factorizer=`) with a printed note, instead of failing |
+| *next* | `modelgrabgdx` reads GDX files without a GAMS installation: by default it uses the GDX library of the PyPI package `gamspy-base` (`pip install "gamsapi[transfer]" gamspy-base`); `gams_dir=` still works |
 
 ## Onboarding
 
@@ -346,6 +353,7 @@ This needed a number of changes and fixes, listed below.
 | 2.88 | `dekomp` works with `basedf=` / `altdf=` and follows a changed `smpl` |
 | 2.88 | `explain` uses the current attribution for "% Explained by" |
 | 2.93 | `model.draw`, `tracepre` and `tracedep` no longer fail with a graphviz syntax error when a variable description contains a double quote |
+| *next* | `rplot` with `model.plain_html = True` shows the charts as plain HTML again (2.87 had dropped it), so books and RISE show them |
 
 ### Other
 

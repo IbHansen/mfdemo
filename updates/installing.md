@@ -233,9 +233,226 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 | Spyder | Standalone installer from spyder-ide.org; set its interpreter to the `modelflow` environment |
 | Update ModelFlow | Run the `conda create` command again (in a new Miniforge Prompt) |
 | Optional: conda in cmd and PowerShell | `conda init cmd.exe powershell` |
+| Additions: PARDISO, MUMPS, R, EViews, GAMS, Shiny | See [section 8](#install-advanced) |
+
+(install-advanced)=
+## 8. Advanced: additions to the environment
+
+The `modelflow` environment from step 2 is enough for most work. The additions
+below are only needed for some parts of ModelFlow. Each one is added to the
+existing environment, so install only those you need. Each section has the
+same four parts: what the addition is used for, what it needs, how to install
+it and how to check it.
+
+| Addition | Used for | Needs besides the environment |
+|---|---|---|
+| [PARDISO](#install-large) | solving large forward-looking models (`factorizer='normal'`, `'pardiso'`) | - |
+| [MUMPS](#install-mumps) | `factorizer='mumps'` | an environment of its own |
+| [R](#install-r) | estimation with R (`<estimator=r_lm>`, `<estimator=r_nls>`) | R and RStudio |
+| [EViews](#install-eviews) | estimation with EViews, EViews models and workfiles | EViews with a licence |
+| [GAMS](#install-gams) | results of GAMS models (`.gdx` files) | - |
+| [Shiny](#install-shiny) | web apps with `modelinput_shiny` | - |
+
+Run the commands in the Miniforge Prompt. When you create the `modelflow`
+environment again to update ModelFlow ([updating](#install-update)), the
+additions are gone; install them again.
+
+`numba` (compiled models, `ljit=True`) and `cvxopt` (`factorizer='umfpack'`)
+come with ModelFlow and need nothing more.
+
+(install-large)=
+### 8.1 PARDISO, for large models
+
+**Used for:** a large forward-looking model solved with the stacked Newton
+solver (`newtonstack_ng`) ends in one very large linear system. For systems
+too large for the default (SuperLU), `factorizer='normal'` and
+`factorizer='pardiso'` use Intel's PARDISO. How to choose and set the options
+is in [New features: large models](#largemodels).
+
+**Needs:** nothing besides the environment. Memory is the limit: the Danish
+model MAKRO, 100 years with 1.5 million unknowns, needs about 25 GB of free
+memory.
+
+**Install:**
+
+```
+conda activate modelflow
+pip install pypardiso
+```
+
+pip also installs Intel's MKL library.
+
+**Check:**
+
+```
+python -c "import modelfactorize; print(modelfactorize.mkl_version())"
+```
+
+It prints the MKL version, for instance `2026`. The option `iparm={1: 13}`,
+the faster factorization, needs 2026 or newer. With an older MKL, ModelFlow
+leaves the option out with a note, and the solve still works.
+
+**Good to know:** `ljit=True` compiles the equations with numba. For a large
+model the first compile takes long (MAKRO: about 20 minutes). The compiled code
+is saved in the folder `modelsource` below the working folder, and later
+sessions load it from there.
+
+(install-mumps)=
+### 8.2 MUMPS
+
+**Used for:** `factorizer='mumps'`, an LU factorization with pivoting, for
+large systems that are too badly conditioned for PARDISO.
+
+**Needs:** an environment of its own. MUMPS can't share an environment with
+PARDISO: the two use different OpenMP libraries, and the Jupyter kernel dies
+with `OMP: Error #15`. ModelFlow runs MUMPS in a helper process with the Python
+of that environment.
+
+**Install:**
+
+```
+conda create -n mfmumps -c conda-forge python-mumps numpy scipy -y
+setx MODELFLOW_MUMPS_PYTHON %USERPROFILE%\miniforge3\envs\mfmumps\python.exe
+```
+
+Open a new Miniforge Prompt and start Jupyter again after `setx`.
+
+**Check:**
+
+```
+%USERPROFILE%\miniforge3\envs\mfmumps\python.exe -c "import mumps; print('ok')"
+```
+
+(install-r)=
+### 8.3 R
+
+**Used for:** estimating equations with R: OLS, Newey-West standard errors and
+2SLS (`<estimator=r_lm>`), and nonlinear least squares (`<estimator=r_nls>`).
+This comes with the release after 2.94.
+
+**Needs:** R and RStudio, installed as ordinary Windows programs. ModelFlow
+doesn't load R into Python. It writes an R script and runs it with
+`Rscript.exe`, so R and the packages of the environment never meet, and they
+can be updated separately. Nothing is added to the environment.
+
+**Install:** R from [cran.r-project.org](https://cran.r-project.org/bin/windows/base/)
+and RStudio from [posit.co](https://posit.co/download/rstudio-desktop/), or
+with winget:
+
+```
+winget install -e --id RProject.R
+winget install -e --id Posit.RStudio
+```
+
+Then open RStudio and install the R packages ModelFlow uses, once, in the
+*Console*:
+
+```r
+install.packages(c("sandwich", "lmtest", "ivreg", "minpack.lm"))
+```
+
+If R asks whether to use a personal library, answer yes.
+
+**Check:**
+
+```
+conda activate modelflow
+python -c "import modelestimator_r as mr; print(mr.find_rscript())"
+```
+
+It prints something like `C:\Program Files\R\R-4.6.2\bin\x64\Rscript.exe`.
+
+**Good to know:** ModelFlow finds R in the Windows registry, in
+`C:\Program Files\R` or, for an installation without administrator rights, in
+`%LOCALAPPDATA%\Programs\R`. The newest version wins. For R in another folder:
+`setx MODELFLOW_RSCRIPT "D:\R\R-4.6.2"`, then a new Miniforge Prompt. Install R
+only with its own installer, not with conda: conda's R can't be installed in
+the ModelFlow environment on Windows.
+
+(install-eviews)=
+### 8.4 EViews
+
+**Used for:** estimating nonlinear equations with EViews
+(`Estimate_nls_eviews`, `<est=nls_eviews>`), and reading EViews models and
+workfiles (`.wf1`, `.wf2`) into ModelFlow.
+
+**Needs:** EViews installed and licensed on the same PC. Python talks to it
+through the package `py2eviews`.
+
+**Install:**
+
+```
+conda activate modelflow
+conda install -c conda-forge eviews::py2eviews
+```
+
+**Check:**
+
+```
+python -c "import py2eviews; print('ok')"
+```
+
+(install-gams)=
+### 8.5 GAMS
+
+**Used for:** reading the results of a GAMS model (`.gdx` files) into a
+ModelFlow dataframe with `modelgrabgdx`.
+
+**Needs:** nothing besides the environment. GAMS itself doesn't have to be
+installed: the package `gamspy-base` brings the GAMS libraries that read
+`.gdx` files. The package `gams.transfer` needs pandas older than 3.1.
+
+**Install:** first limit pandas with conda, so that pip doesn't replace conda's
+pandas, then install the packages:
+
+```
+conda activate modelflow
+conda install -c conda-forge "pandas<3.1"
+pip install "gamsapi[transfer]" gamspy-base
+```
+
+**Check:**
+
+```
+python -c "import gamspy_base; from gams import transfer; print(gamspy_base.directory)"
+```
+
+It prints the folder with the GAMS libraries.
+
+**Good to know:** from the release after 2.94, `modelgrabgdx` uses the GDX
+library of `gamspy-base` by itself. With 2.94, give it the folder:
+
+```python
+import gamspy_base
+from modelgrabgdx import model_grab_gdx
+mgams = model_grab_gdx(['baseline.gdx'], gams_dir=gamspy_base.directory)
+```
+
+(install-shiny)=
+### 8.6 Shiny
+
+**Used for:** web apps with ModelFlow's input widgets (`modelinput_shiny`).
+
+**Needs:** nothing besides the environment.
+
+**Install:**
+
+```
+conda activate modelflow
+pip install shiny shinywidgets
+```
+
+**Check:**
+
+```
+python -c "import shiny, shinywidgets; print('ok')"
+```
+
+ModelFlow can also be used from Claude, with plugins and skills for Claude Code;
+see [New features: ModelFlow with Claude](#claude).
 
 (install-browser)=
-## 8. Trying ModelFlow without installing
+## 9. Trying ModelFlow without installing
 
 [**ModelFlow in the browser (JupyterLite)**](https://ibhansen.github.io/jupyter_lite/)
 runs ModelFlow inside your web browser, with nothing to install and no account
